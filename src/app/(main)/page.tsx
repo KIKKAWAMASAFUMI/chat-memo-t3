@@ -1,17 +1,12 @@
 import { Sparkles } from "lucide-react";
-import { SidebarWrapper } from "~/components/layout/sidebar-wrapper";
 import { MainContentWrapper } from "~/components/layout/main-content-wrapper";
 import { MobileMenuButton } from "~/components/layout/mobile-menu-button";
-import { api, HydrateClient } from "~/trpc/server";
+import { HydrateClient } from "~/trpc/server";
 
 export default async function DashboardPage() {
-  // サーバーサイドでサイドバー用データをプリフェッチ
-  void api.snippet.getAll.prefetch();
-  void api.tag.getAll.prefetch();
 
   return (
     <HydrateClient>
-      <SidebarWrapper />
       <MainContentWrapper>
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-center gap-3">
@@ -22,7 +17,7 @@ export default async function DashboardPage() {
         {/* Welcome Screen */}
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-purple-500 rounded-2xl mb-6 shadow-lg">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-linear-to-br from-orange-500 to-purple-500 rounded-2xl mb-6 shadow-lg">
               <Sparkles size={40} className="text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-3">

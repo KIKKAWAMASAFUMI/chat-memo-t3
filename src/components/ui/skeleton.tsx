@@ -1,3 +1,5 @@
+import { Loader2 } from "lucide-react";
+
 interface SkeletonProps {
   className?: string;
 }
@@ -33,36 +35,19 @@ export function MemoContentSkeleton() {
       {/* Header Skeleton */}
       <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center gap-3">
         <Skeleton className="h-8 w-8 lg:hidden" />
-        <Skeleton className="h-7 flex-1 max-w-xs" />
-        <div className="flex gap-2">
-          <Skeleton className="h-10 w-10 rounded-lg" />
-          <Skeleton className="h-10 w-10 rounded-lg" />
+        <div className="flex-1 flex justify-center">
+          <Skeleton className="h-7 w-48" />
         </div>
       </header>
 
       {/* Messages Skeleton */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {[...Array(4)].map((_, i) => (
-          <div
-            key={i}
-            className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-2xl p-4 ${
-                i % 2 === 0 ? "bg-orange-100" : "bg-white"
-              }`}
-            >
-              <Skeleton className="h-4 w-16 mb-2" />
-              <Skeleton className="h-4 w-48 mb-1" />
-              <Skeleton className="h-4 w-36" />
-            </div>
-          </div>
-        ))}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Loader2 className="w-8 h-8 text-gray-300 animate-spin" />
       </div>
 
       {/* Input Skeleton */}
       <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex gap-3">
+        <div className="max-w-3xl mx-auto flex gap-3">
           <Skeleton className="flex-1 h-24 rounded-xl" />
           <Skeleton className="h-10 w-14 rounded-xl" />
         </div>
@@ -70,6 +55,8 @@ export function MemoContentSkeleton() {
     </main>
   );
 }
+
+
 
 export function MessageSkeleton() {
   return (

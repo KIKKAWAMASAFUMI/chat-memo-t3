@@ -173,7 +173,7 @@ export function MemoContent({ snippetId }: MemoContentProps) {
                 if (e.key === "Escape") setIsEditing(false);
               }}
               autoFocus
-              className="w-full max-w-md text-xl font-bold text-gray-800 text-center bg-transparent border-b-2 border-orange-500 focus:outline-none"
+              className="w-full max-w-md text-xl text-gray-800 text-center bg-transparent border-b-2 border-orange-500 focus:outline-none"
             />
           ) : (
             <h1
@@ -186,7 +186,7 @@ export function MemoContent({ snippetId }: MemoContentProps) {
               onTouchStart={startTitleLongPress}
               onTouchEnd={endTitleLongPress}
               onTouchCancel={endTitleLongPress}
-              className="text-xl font-bold text-gray-800 lg:cursor-pointer lg:hover:text-orange-500 transition-colors truncate select-none text-center"
+              className="text-xl text-gray-800 lg:cursor-pointer lg:hover:text-orange-500 transition-colors truncate select-none text-center"
             >
               {snippet.title}
             </h1>
@@ -196,82 +196,86 @@ export function MemoContent({ snippetId }: MemoContentProps) {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {snippet.messages.length === 0 ? (
-          <div className="text-center text-gray-400 py-12">
-            メッセージを追加してください
-          </div>
-        ) : (
-          snippet.messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              snippetId={snippetId}
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
+      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div className="max-w-3xl mx-auto space-y-6 h-full flex flex-col">
+          {snippet.messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center text-gray-400">
+              メッセージを追加してください
+            </div>
+          ) : (
+            snippet.messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                snippetId={snippetId}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input */}
       <div className="bg-white border-t border-gray-200 p-4">
-        <div className="flex gap-3">
-          <textarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="メッセージを入力..."
-            rows={3}
-            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          />
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setShowSenderSelect(!showSenderSelect)}
-              disabled={!inputValue.trim() || createMessage.isPending}
-              className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {createMessage.isPending ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                <Send size={20} />
-              )}
-            </button>
+        <div className="max-w-3xl mx-auto relative">
+          <div className="flex gap-3">
+            <textarea
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="メッセージを入力..."
+              rows={3}
+              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setShowSenderSelect(!showSenderSelect)}
+                disabled={!inputValue.trim() || createMessage.isPending}
+                className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createMessage.isPending ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <Send size={20} />
+                )}
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Sender Select Popup */}
-        {showSenderSelect && inputValue.trim() && (
-          <div className="absolute bottom-24 right-8 bg-white rounded-xl shadow-lg border border-gray-200 p-2 min-w-48">
-            <button
-              onClick={() => handleSendMessage("user")}
-              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <User size={18} />
-              <span>{settings?.userName ?? "あなた"}</span>
-            </button>
-            <div className="border-t border-gray-100 my-1" />
-            <button
-              onClick={() => handleSendMessage("ai", "ChatGPT")}
-              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Bot size={18} />
-              <span>ChatGPT</span>
-            </button>
-            <button
-              onClick={() => handleSendMessage("ai", "Claude")}
-              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Bot size={18} />
-              <span>Claude</span>
-            </button>
-            <button
-              onClick={() => handleSendMessage("ai", "Gemini")}
-              className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Bot size={18} />
-              <span>Gemini</span>
-            </button>
-          </div>
-        )}
+          {/* Sender Select Popup */}
+          {showSenderSelect && inputValue.trim() && (
+            <div className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 p-2 min-w-48 z-10">
+              <button
+                onClick={() => handleSendMessage("user")}
+                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <User size={18} />
+                <span>{settings?.userName ?? "あなた"}</span>
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button
+                onClick={() => handleSendMessage("ai", "ChatGPT")}
+                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Bot size={18} />
+                <span>ChatGPT</span>
+              </button>
+              <button
+                onClick={() => handleSendMessage("ai", "Claude")}
+                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Bot size={18} />
+                <span>Claude</span>
+              </button>
+              <button
+                onClick={() => handleSendMessage("ai", "Gemini")}
+                className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Bot size={18} />
+                <span>Gemini</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

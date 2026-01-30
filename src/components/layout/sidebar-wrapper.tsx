@@ -18,6 +18,7 @@ import { SettingsModal } from "~/components/settings/settings-modal";
 import { TagModal } from "~/components/tag/tag-modal";
 import { useSidebar } from "~/components/layout/sidebar-context";
 import { SnippetListSkeleton } from "~/components/ui/skeleton";
+import { CreateSnippetModal } from "~/components/snippet/create-snippet-modal";
 
 export function SidebarWrapper() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export function SidebarWrapper() {
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [tagModalSnippetId, setTagModalSnippetId] = useState<string | null>(null);
   const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -41,6 +43,7 @@ export function SidebarWrapper() {
   const utils = api.useUtils();
 
   // Get current snippet ID from URL
+  // Get current snippet ID from URL
   const currentSnippetId = pathname?.startsWith("/memo/")
     ? pathname.split("/")[2]
     : null;
@@ -49,13 +52,7 @@ export function SidebarWrapper() {
   const { data: snippets, isLoading } = api.snippet.getAll.useQuery();
   const { data: allTags } = api.tag.getAll.useQuery();
 
-  const createSnippet = api.snippet.create.useMutation({
-    onSuccess: (data) => {
-      void utils.snippet.getAll.invalidate();
-      router.push(`/memo/${data.id}`);
-      close();
-    },
-  });
+  // createSnippet mutation removed from here as it is moved to the modal.
 
   const deleteSnippet = api.snippet.delete.useMutation({
     onSuccess: () => {
@@ -123,7 +120,7 @@ export function SidebarWrapper() {
   });
 
   const handleCreateNew = () => {
-    createSnippet.mutate({ title: "新規メモ" });
+    setCreateModalOpen(true);
   };
 
   const handleLogout = async () => {
@@ -191,9 +188,9 @@ export function SidebarWrapper() {
           fixed inset-y-0 left-0 z-50
           w-72 bg-white border-r border-gray-200
           flex flex-col
-          transform transition-transform duration-300 ease-in-out
+          transform transition-all duration-300 ease-in-out
           lg:relative
-          ${isOpen ? "translate-x-0" : "-translate-x-full lg:-ml-72 lg:translate-x-0"}
+          ${isOpen ? "translate-x-0 lg:ml-0" : "-translate-x-full lg:-ml-72 lg:translate-x-0"}
         `}
       >
         {/* Header */}
@@ -212,8 +209,7 @@ export function SidebarWrapper() {
         <div className="p-4">
           <button
             onClick={handleCreateNew}
-            disabled={createSnippet.isPending}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
           >
             <Plus size={20} />
             新規メモ
@@ -239,11 +235,10 @@ export function SidebarWrapper() {
                 e.stopPropagation();
                 setTagDropdownOpen(!tagDropdownOpen);
               }}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded transition-colors ${
-                selectedTagIds.length > 0
-                  ? "bg-orange-100 text-orange-500"
-                  : "hover:bg-gray-100 text-gray-400"
-              }`}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded transition-colors ${selectedTagIds.length > 0
+                ? "bg-orange-100 text-orange-500"
+                : "hover:bg-gray-100 text-gray-400"
+                }`}
               aria-label="タグで検索"
             >
               <Hash size={16} />
@@ -265,11 +260,10 @@ export function SidebarWrapper() {
                   <button
                     key={tag.id}
                     onClick={() => handleTagSelect(tag.id)}
-                    className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${
-                      selectedTagIds.includes(tag.id)
-                        ? "bg-orange-50 text-orange-600"
-                        : "hover:bg-gray-50 text-gray-700"
-                    }`}
+                    className={`w-full px-3 py-2 text-left text-sm transition-colors flex items-center gap-2 ${selectedTagIds.includes(tag.id)
+                      ? "bg-orange-50 text-orange-600"
+                      : "hover:bg-gray-50 text-gray-700"
+                      }`}
                   >
                     <Hash size={14} />
                     <span>{tag.name}</span>
@@ -322,10 +316,9 @@ export function SidebarWrapper() {
                   className={`
                     group relative p-3 rounded-lg cursor-pointer
                     transition-all duration-200 select-none
-                    ${
-                      currentSnippetId === snippet.id
-                        ? "bg-orange-50 border-l-4 border-orange-500"
-                        : "hover:bg-gray-50"
+                    ${currentSnippetId === snippet.id
+                      ? "bg-orange-50 border-l-4 border-orange-500"
+                      : "hover:bg-gray-50"
                     }
                     ${menuOpenId === snippet.id ? "scale-[1.02] shadow-lg z-10" : ""}
                   `}
@@ -456,6 +449,12 @@ export function SidebarWrapper() {
           snippetId={tagModalSnippetId}
         />
       )}
+
+      {/* Create Snippet Modal */}
+      <CreateSnippetModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+      />
     </>
   );
 }
