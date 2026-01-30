@@ -11,6 +11,7 @@ import {
   EyeOff,
   AlertCircle,
   Sparkles,
+  User,
 } from "lucide-react";
 
 type AuthMode = "login" | "signup" | "forgot-password";
@@ -44,6 +45,7 @@ function checkPasswordStrength(password: string): {
 export function LoginForm() {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -118,7 +120,7 @@ export function LoginForm() {
         const response = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ name: name || undefined, email, password }),
         });
 
         if (!response.ok) {
@@ -219,6 +221,28 @@ export function LoginForm() {
 
           {/* Email/Password Form */}
           <form onSubmit={handleEmailAuth} className="space-y-4">
+            {/* Name (Signup only) */}
+            {mode === "signup" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  ユーザー名
+                </label>
+                <div className="relative">
+                  <User
+                    size={18}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="表示名を入力"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

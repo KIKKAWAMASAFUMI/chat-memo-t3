@@ -4,8 +4,8 @@ import { db } from "~/server/db";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { email?: string; password?: string };
-    const { email, password } = body;
+    const body = (await request.json()) as { name?: string; email?: string; password?: string };
+    const { name, email, password } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     const user = await db.user.create({
       data: {
         email,
+        name: name || null,
         password: hashedPassword,
       },
     });
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     await db.userSettings.create({
       data: {
         userId: user.id,
-        userName: "あなた",
+        userName: name || "あなた",
         customAINames: [],
         defaultDisplayMode: "markdown",
       },
