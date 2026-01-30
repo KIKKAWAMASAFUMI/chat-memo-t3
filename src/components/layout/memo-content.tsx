@@ -6,14 +6,15 @@ import {
   Send,
   Trash2,
   Edit3,
-  MoreVertical,
+  Menu,
   User,
   Bot,
-  Copy,
-  Check,
+  Loader2,
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { MessageBubble } from "~/components/message/message-bubble";
+import { useSidebar } from "~/components/layout/sidebar-context";
+import { MemoContentSkeleton } from "~/components/ui/skeleton";
 
 interface MemoContentProps {
   snippetId: string;
@@ -21,6 +22,7 @@ interface MemoContentProps {
 
 export function MemoContent({ snippetId }: MemoContentProps) {
   const router = useRouter();
+  const { open: openSidebar } = useSidebar();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -99,11 +101,7 @@ export function MemoContent({ snippetId }: MemoContentProps) {
   };
 
   if (isLoading) {
-    return (
-      <main className="flex-1 flex items-center justify-center bg-[#f9f7f2]">
-        <div className="text-gray-400">読み込み中...</div>
-      </main>
-    );
+    return <MemoContentSkeleton />;
   }
 
   if (!snippet) {
@@ -117,29 +115,43 @@ export function MemoContent({ snippetId }: MemoContentProps) {
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-[#f9f7f2]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        {isEditing ? (
-          <input
-            type="text"
-            value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
-            onBlur={handleTitleSave}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleTitleSave();
-              if (e.key === "Escape") setIsEditing(false);
-            }}
-            autoFocus
-            className="text-xl font-bold text-gray-800 bg-transparent border-b-2 border-orange-500 focus:outline-none"
-          />
-        ) : (
-          <h1
-            onClick={() => setIsEditing(true)}
-            className="text-xl font-bold text-gray-800 cursor-pointer hover:text-orange-500 transition-colors"
-          >
-            {snippet.title}
-          </h1>
-        )}
-        <div className="flex items-center gap-2">
+      <header className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center gap-3">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={openSidebar}
+          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+          aria-label="メニューを開く"
+        >
+          <Menu size={24} />
+        </button>
+
+        {/* Title */}
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleTitleSave();
+                if (e.key === "Escape") setIsEditing(false);
+              }}
+              autoFocus
+              className="w-full text-xl font-bold text-gray-800 bg-transparent border-b-2 border-orange-500 focus:outline-none"
+            />
+          ) : (
+            <h1
+              onClick={() => setIsEditing(true)}
+              className="text-xl font-bold text-gray-800 cursor-pointer hover:text-orange-500 transition-colors truncate"
+            >
+              {snippet.title}
+            </h1>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 lg:gap-2">
           <button
             onClick={() => setIsEditing(true)}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -189,7 +201,11 @@ export function MemoContent({ snippetId }: MemoContentProps) {
               disabled={!inputValue.trim() || createMessage.isPending}
               className="px-4 py-2 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Send size={20} />
+              {createMessage.isPending ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                <Send size={20} />
+              )}
             </button>
           </div>
         </div>

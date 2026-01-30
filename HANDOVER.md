@@ -60,10 +60,27 @@
 | コンポーネント | パス | 状態 |
 |---------------|------|------|
 | LoginForm | components/auth/login-form.tsx | 完了（基本実装） |
-| SidebarWrapper | components/layout/sidebar-wrapper.tsx | 完了（基本実装） |
+| SidebarWrapper | components/layout/sidebar-wrapper.tsx | 完了（モバイル対応・長押し対応） |
+| SidebarContext | components/layout/sidebar-context.tsx | 完了（サイドバー開閉状態管理） |
 | MainContentWrapper | components/layout/main-content-wrapper.tsx | 完了 |
-| MemoContent | components/layout/memo-content.tsx | 完了（基本実装） |
-| MessageBubble | components/message/message-bubble.tsx | 完了（基本実装） |
+| MemoContent | components/layout/memo-content.tsx | 完了（モバイル対応・スケルトンUI） |
+| MessageBubble | components/message/message-bubble.tsx | 完了（Markdown対応） |
+| Modal | components/ui/modal.tsx | 完了 |
+| CodeBlock | components/ui/code-block.tsx | 完了 |
+| MarkdownRenderer | components/ui/markdown-renderer.tsx | 完了 |
+| Skeleton | components/ui/skeleton.tsx | 完了（スケルトンローディングUI） |
+| SettingsModal | components/settings/settings-modal.tsx | 完了 |
+| TagModal | components/tag/tag-modal.tsx | 完了 |
+| SelectAIModal | components/ai/select-ai-modal.tsx | 完了 |
+| ToastProvider | components/ui/toast.tsx | 完了 |
+| ConfirmModal | components/ui/confirm-modal.tsx | 完了 |
+| Providers | components/providers.tsx | 完了 |
+
+### 7. 定数ファイル
+**ファイル**: `src/constants/index.ts`
+
+- [x] 制限値（MAX_CUSTOM_AIS, MAX_TAGS, etc.）
+- [x] デフォルト値（DEFAULT_USERNAME, DEFAULT_AI_PRESETS, etc.）
 
 ### 6. ページ構造
 **ディレクトリ**: `src/app/`
@@ -86,77 +103,104 @@ app/
 
 ---
 
+### 8. データベース設定 ✅ 完了
+**Supabaseプロジェクト**: chat-memo-t3
+**プロジェクトID**: tfflfuljtuzoftaueeaw
+**リージョン**: ap-northeast-1 (Tokyo)
+
+- [x] Supabaseプロジェクト作成
+- [x] 環境変数設定（.env）
+- [x] データベースマイグレーション（11テーブル）
+- [x] ユーザー登録・ログイン動作確認
+- [x] メッセージ保存動作確認
+
+**接続URL形式**（Supabase Dashboard > Connect > ORMs > Prismaから取得）:
+```
+DATABASE_URL: aws-1-ap-northeast-1.pooler.supabase.com:6543 (pgbouncer)
+DIRECT_URL: aws-1-ap-northeast-1.pooler.supabase.com:5432 (direct)
+```
+
+---
+
 ## 未完了作業（優先度順）
 
 ### 高優先度
 
-#### 1. 環境変数の設定
+#### 1. Google OAuth設定
 ```bash
-# .envファイルを作成し、以下を設定
-DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres"
+# .envファイルに追加
 AUTH_GOOGLE_ID="your-google-client-id"
 AUTH_GOOGLE_SECRET="your-google-client-secret"
 ```
+Google Cloud Consoleで認証情報を作成し設定が必要
 
-#### 2. データベースマイグレーション
-```bash
-npx prisma generate
-npx prisma migrate dev --name init
-```
+#### 3. 設定モーダルの移植 ✅ 完了
+**ファイル**: `src/components/settings/settings-modal.tsx`
 
-#### 3. 設定モーダルの移植
-**参照元**: `ChatMemo/src/components/layout/SettingsModal.tsx`
+実装済み機能：
+- [x] ユーザー名変更
+- [x] AI有効/無効切り替え
+- [x] カスタムAI追加/削除
+- [x] デフォルト表示モード変更
+- [x] タグ管理
+- [x] ログアウト
 
-必要な機能：
-- [ ] ユーザー名変更
-- [ ] AI有効/無効切り替え
-- [ ] カスタムAI追加/削除
-- [ ] デフォルト表示モード変更
-- [ ] タグ管理
-- [ ] ログアウト
+#### 4. Markdownレンダリング ✅ 完了
+**ファイル**: `src/components/ui/markdown-renderer.tsx`, `src/components/ui/code-block.tsx`
 
-#### 4. Markdownレンダリング
-**参照元**: `ChatMemo/src/components/snippet/MarkdownRenderer.tsx`
+インストール済みパッケージ：
+- react-markdown
+- remark-gfm
+- react-syntax-highlighter
+- dompurify
 
-必要なパッケージ：
-```bash
-npm install react-markdown remark-gfm react-syntax-highlighter
-npm install -D @types/react-syntax-highlighter
-```
-
-必要な機能：
-- [ ] Markdownパース・表示
-- [ ] コードブロックのシンタックスハイライト
-- [ ] GFM（GitHub Flavored Markdown）対応
+実装済み機能：
+- [x] Markdownパース・表示
+- [x] コードブロックのシンタックスハイライト（Prism + oneDark）
+- [x] GFM（GitHub Flavored Markdown）対応
+- [x] XSS対策（DOMPurify）
 
 ### 中優先度
 
-#### 5. タグモーダルの移植
-**参照元**: `ChatMemo/src/components/layout/TagModal.tsx`
+#### 5. タグモーダルの移植 ✅ 完了
+**ファイル**: `src/components/tag/tag-modal.tsx`
 
-- [ ] スニペットへのタグ付け
-- [ ] タグ一覧表示
-- [ ] タグ追加/削除
+実装済み機能：
+- [x] スニペットへのタグ付け
+- [x] タグ一覧表示
+- [x] タグ追加/削除（新規作成も可能）
+- [x] 最大4タグまでの制限
 
-#### 6. AI選択モーダルの移植
-**参照元**: `ChatMemo/src/components/layout/SelectAIModal.tsx`
+#### 6. AI選択モーダルの移植 ✅ 完了
+**ファイル**: `src/components/ai/select-ai-modal.tsx`
 
-- [ ] メッセージ送信時のAI選択ポップアップ
-- [ ] カスタムAI対応
+実装済み機能：
+- [x] メッセージ送信時のAI選択ポップアップ
+- [x] アクティブAI一覧の表示
+- [x] デフォルトAIフォールバック
 
-#### 7. タグフィルタリング機能
-- [ ] サイドバーでのタグフィルタ
-- [ ] 複数タグでのAND検索
+#### 7. タグフィルタリング機能 ✅ 完了
+**ファイル**: `src/components/layout/sidebar-wrapper.tsx`（統合済み）
+
+実装済み機能：
+- [x] サイドバーでのタグフィルタ
+- [x] 複数タグでのOR検索
+- [x] タグバッジ表示
+- [x] フィルタークリア機能
 
 ### 低優先度
 
 #### 8. UIの詳細調整
-- [ ] モバイルレスポンシブ対応
-- [ ] 長押しジェスチャー（モバイル）
-- [ ] トースト通知システム
-- [ ] 確認ダイアログ
-- [ ] ローディング状態の改善
+- [x] モバイルレスポンシブ対応 ✅ 完了
+  - `src/components/layout/sidebar-context.tsx` - サイドバー開閉状態管理
+  - モバイルオーバーレイ + スライドインサイドバー
+  - ハンバーガーメニューボタン（モバイル時）
+- [x] 長押しジェスチャー（モバイル） ✅ 完了（`sidebar-wrapper.tsx`内に実装）
+- [x] トースト通知システム ✅ 完了（`src/components/ui/toast.tsx`）
+- [x] 確認ダイアログ ✅ 完了（`src/components/ui/confirm-modal.tsx`）
+- [x] ローディング状態の改善 ✅ 完了
+  - `src/components/ui/skeleton.tsx` - スケルトンローディングUI
+  - MemoContent / SidebarWrapper にスケルトンUI適用
 
 #### 9. データ移行スクリプト
 **作成場所**: `scripts/migrate-data.ts`
@@ -198,19 +242,21 @@ cd /Users/kikkawamasafumi/Developer/Projects/WebApps/chat-memo-t3
 # 2. 依存関係インストール（済み）
 npm install
 
-# 3. 環境変数設定
-cp .env.example .env
-# .envを編集
+# 3. 環境変数設定（.envは設定済み）
+# 新規セットアップの場合: cp .env.example .env && .envを編集
 
 # 4. Prismaクライアント生成
 npx prisma generate
 
-# 5. データベースマイグレーション
-npx prisma migrate dev --name init
+# 5. データベースマイグレーション（済み - 11テーブル作成済み）
+# 新規マイグレーション時のみ: npx prisma migrate dev --name [migration_name]
 
 # 6. 開発サーバー起動
 npm run dev
 ```
+
+**注意**: Supabaseへの直接接続（prisma migrate dev）がローカルからブロックされる場合は、
+Supabase MCP経由でSQLを実行するか、Supabase Dashboardから直接SQLを実行してください。
 
 ---
 
@@ -218,7 +264,7 @@ npm run dev
 
 | 層 | 技術 | バージョン |
 |---|------|----------|
-| フレームワーク | Next.js (App Router) | 14+ |
+| フレームワーク | Next.js (App Router) | 15.x |
 | 言語 | TypeScript | 5.x |
 | API | tRPC | 11.x |
 | ORM | Prisma | 6.x |
@@ -226,6 +272,9 @@ npm run dev
 | スタイリング | Tailwind CSS | 4.x |
 | データベース | PostgreSQL (Supabase) | - |
 | アイコン | Lucide React | - |
+| Markdown | react-markdown + remark-gfm | - |
+| シンタックスハイライト | react-syntax-highlighter | - |
+| セキュリティ | DOMPurify | - |
 
 ---
 
@@ -237,7 +286,8 @@ npm run dev
 
 2. **環境変数**
    - `.env`ファイルはコミットしない
-   - Supabaseの接続情報は管理者から取得
+   - Supabaseの接続情報はDashboard > Connect > ORMs > Prismaから取得
+   - **重要**: pooler URLは `aws-1-ap-northeast-1.pooler.supabase.com`（`aws-0`ではない）
 
 3. **認証**
    - Credentials認証にはbcryptjsでのパスワードハッシュ化を使用
@@ -262,4 +312,5 @@ npm run dev
 ---
 
 *作成日: 2026-01-30*
+*更新日: 2026-01-30*
 *作成者: Claude Code (Claude Opus 4.5)*

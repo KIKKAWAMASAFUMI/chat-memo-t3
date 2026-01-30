@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Copy, Check, Trash2, Edit3, User, Bot } from "lucide-react";
 import { api } from "~/trpc/react";
+import { MarkdownRenderer } from "~/components/ui/markdown-renderer";
 import type { Message } from "~/generated/prisma";
 
 interface MessageBubbleProps {
@@ -91,13 +92,11 @@ export function MessageBubble({ message, snippetId }: MessageBubbleProps) {
               className="w-full min-w-[300px] min-h-[100px] bg-transparent focus:outline-none resize-none text-gray-800"
             />
           ) : (
-            <div className="text-gray-800 whitespace-pre-wrap text-left">
+            <div className="text-gray-800 text-left">
               {message.displayMode === "markdown" ? (
-                <div className="prose prose-sm max-w-none">
-                  {message.content}
-                </div>
+                <MarkdownRenderer content={message.content} />
               ) : (
-                message.content
+                <div className="whitespace-pre-wrap">{message.content}</div>
               )}
             </div>
           )}
