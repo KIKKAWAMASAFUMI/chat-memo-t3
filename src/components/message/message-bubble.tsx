@@ -19,14 +19,53 @@ export function MessageBubble({ message, snippetId }: MessageBubbleProps) {
   const utils = api.useUtils();
 
   const updateMessage = api.message.update.useMutation({
-    onSuccess: () => {
-      void utils.snippet.getById.invalidate({ id: snippetId });
+    onMutate: async ({ id, content }) => {
+      await utils.snippet.getById.cancel({ id: snippetId });
+      const previousSnippet = utils.snippet.getById.getData({ id: snippetId });
+
+      if (previousSnippet && content) {
+        utils.snippet.getById.setData({ id: snippetId }, {
+          ...previousSnippet,
+          messages: previousSnippet.messages.map((m) =>
+            m.id === id ? { ...m, content } : m
+          ),
+        });
+      }
+
       setIsEditing(false);
+      return { previousSnippet };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousSnippet) {
+        utils.snippet.getById.setData({ id: snippetId }, context.previousSnippet);
+        setEditContent(message.content);
+      }
+    },
+    onSettled: () => {
+      void utils.snippet.getById.invalidate({ id: snippetId });
     },
   });
 
   const deleteMessage = api.message.delete.useMutation({
-    onSuccess: () => {
+    onMutate: async ({ id }) => {
+      await utils.snippet.getById.cancel({ id: snippetId });
+      const previousSnippet = utils.snippet.getById.getData({ id: snippetId });
+
+      if (previousSnippet) {
+        utils.snippet.getById.setData({ id: snippetId }, {
+          ...previousSnippet,
+          messages: previousSnippet.messages.filter((m) => m.id !== id),
+        });
+      }
+
+      return { previousSnippet };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previousSnippet) {
+        utils.snippet.getById.setData({ id: snippetId }, context.previousSnippet);
+      }
+    },
+    onSettled: () => {
       void utils.snippet.getById.invalidate({ id: snippetId });
     },
   });

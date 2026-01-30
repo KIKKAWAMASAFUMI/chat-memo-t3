@@ -1,27 +1,22 @@
-"use client";
-
-import { Sparkles, Menu } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { SidebarWrapper } from "~/components/layout/sidebar-wrapper";
 import { MainContentWrapper } from "~/components/layout/main-content-wrapper";
-import { useSidebar } from "~/components/layout/sidebar-context";
+import { MobileMenuButton } from "~/components/layout/mobile-menu-button";
+import { api, HydrateClient } from "~/trpc/server";
 
-export default function DashboardPage() {
-  const { open: openSidebar } = useSidebar();
+export default async function DashboardPage() {
+  // サーバーサイドでサイドバー用データをプリフェッチ
+  void api.snippet.getAll.prefetch();
+  void api.tag.getAll.prefetch();
 
   return (
-    <>
+    <HydrateClient>
       <SidebarWrapper />
       <MainContentWrapper>
-        {/* Mobile Header */}
-        <header className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3 lg:hidden">
-          <button
-            onClick={openSidebar}
-            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="メニューを開く"
-          >
-            <Menu size={24} />
-          </button>
-          <h1 className="text-lg font-bold text-orange-500">Chat Memo</h1>
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 px-4 py-4 flex items-center justify-center gap-3">
+          <MobileMenuButton />
+          <h1 className="text-lg font-bold text-orange-500 flex-1 text-center lg:text-left">Chat Memo</h1>
         </header>
 
         {/* Welcome Screen */}
@@ -45,6 +40,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </MainContentWrapper>
-    </>
+    </HydrateClient>
   );
 }

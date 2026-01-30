@@ -11,6 +11,7 @@ import {
   X,
   Hash,
   MoreVertical,
+  Edit3,
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { SettingsModal } from "~/components/settings/settings-modal";
@@ -28,7 +29,10 @@ export function SidebarWrapper() {
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tagModalSnippetId, setTagModalSnippetId] = useState<string | null>(null);
+  const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Long press logic refs
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -49,7 +53,7 @@ export function SidebarWrapper() {
     onSuccess: (data) => {
       void utils.snippet.getAll.invalidate();
       router.push(`/memo/${data.id}`);
-      close(); // Close sidebar on mobile after creating
+      close();
     },
   });
 
@@ -61,6 +65,31 @@ export function SidebarWrapper() {
       }
     },
   });
+
+  const updateSnippet = api.snippet.update.useMutation({
+    onSuccess: () => {
+      void utils.snippet.getAll.invalidate();
+      void utils.snippet.getById.invalidate();
+      setEditingSnippetId(null);
+      setEditTitle("");
+    },
+  });
+
+  const handleStartEdit = (snippetId: string, currentTitle: string) => {
+    setEditingSnippetId(snippetId);
+    setEditTitle(currentTitle);
+    setMenuOpenId(null);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const handleSaveTitle = (snippetId: string) => {
+    if (editTitle.trim() && editTitle !== snippets?.find(s => s.id === snippetId)?.title) {
+      updateSnippet.mutate({ id: snippetId, title: editTitle.trim() });
+    } else {
+      setEditingSnippetId(null);
+      setEditTitle("");
+    }
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -163,8 +192,8 @@ export function SidebarWrapper() {
           w-72 bg-white border-r border-gray-200
           flex flex-col
           transform transition-transform duration-300 ease-in-out
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:relative lg:translate-x-0
+          lg:relative
+          ${isOpen ? "translate-x-0" : "-translate-x-full lg:-ml-72 lg:translate-x-0"}
         `}
       >
         {/* Header */}
@@ -172,7 +201,7 @@ export function SidebarWrapper() {
           <h1 className="text-lg font-bold text-orange-500">Chat Memo</h1>
           <button
             onClick={close}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             aria-label="サイドバーを閉じる"
           >
             <X size={20} className="text-gray-500" />
@@ -309,9 +338,29 @@ export function SidebarWrapper() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-800 truncate">
-                        {snippet.title}
-                      </div>
+                      {editingSnippetId === snippet.id ? (
+                        <input
+                          ref={editInputRef}
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={() => handleSaveTitle(snippet.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveTitle(snippet.id);
+                            if (e.key === "Escape") {
+                              setEditingSnippetId(null);
+                              setEditTitle("");
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-full font-medium text-gray-800 bg-white border border-orange-500 rounded px-2 py-1 focus:outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="font-medium text-gray-800 truncate">
+                          {snippet.title}
+                        </div>
+                      )}
                       {snippet.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
                           {snippet.tags.map((st) => (
@@ -343,16 +392,24 @@ export function SidebarWrapper() {
                   {/* Dropdown Menu */}
                   {menuOpenId === snippet.id && (
                     <div
-                      className="absolute right-2 top-10 z-10 w-32 py-1 bg-white rounded-lg shadow-lg border border-gray-200"
+                      className="absolute right-2 top-10 z-10 w-40 py-1 bg-white rounded-lg shadow-lg border border-gray-200"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
-                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                        onClick={() => handleStartEdit(snippet.id, snippet.title)}
+                      >
+                        <Edit3 size={14} />
+                        タイトルを編集
+                      </button>
+                      <button
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                         onClick={() => {
                           setTagModalSnippetId(snippet.id);
                           setMenuOpenId(null);
                         }}
                       >
+                        <Hash size={14} />
                         タグを編集
                       </button>
                       <button
