@@ -65,6 +65,33 @@ export const aiProviderRouter = createTRPCRouter({
       });
     }),
 
+  // Update a custom AI provider
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        name: z.string().min(1),
+        icon: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const provider = await ctx.db.aIProvider.findUnique({
+        where: { id: input.id },
+      });
+
+      if (!provider) throw new Error("Provider not found");
+      if (provider.userId !== ctx.session.user.id) throw new Error("Unauthorized");
+      if (provider.isDefault) throw new Error("Cannot update default provider");
+
+      return ctx.db.aIProvider.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          icon: input.icon,
+        },
+      });
+    }),
+
   // Delete a custom AI provider
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Plus, Tag as TagIcon, AlertTriangle, LogOut, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Modal } from "~/components/ui/modal";
+
 import { api } from "~/trpc/react";
 import {
   DEFAULT_AI_PRESETS,
@@ -40,32 +41,236 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   });
 
   // Mutations
+  const [notification, setNotification] = useState<string | null>(null);
+
+  const showNotification = (message: string) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const updateUserName = api.settings.updateUserName.useMutation({
-    onSuccess: () => void utils.settings.get.invalidate(),
+    onSuccess: () => {
+      void utils.settings.get.invalidate();
+    },
+    onError: (error) => {
+      showNotification(`保存に失敗しました: ${error.message}`);
+    },
   });
+
+
+
   const updateDisplayMode = api.settings.updateDisplayMode.useMutation({
-    onSuccess: () => void utils.settings.get.invalidate(),
+    onMutate: async (newSettings) => {
+      await utils.settings.get.cancel();
+      const previousSettings = utils.settings.get.getData();
+
+      utils.settings.get.setData(undefined, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          defaultDisplayMode: newSettings.displayMode,
+        };
+      });
+
+      return { previousSettings };
+    },
+    onError: (err, newSettings, context) => {
+      utils.settings.get.setData(undefined, context?.previousSettings);
+      showNotification("表示モードの変更に失敗しました");
+    },
+    onSettled: () => {
+      void utils.settings.get.invalidate();
+    },
   });
   const toggleActiveAI = api.aiProvider.toggleActive.useMutation({
-    onSuccess: () => void utils.aiProvider.getActiveAIs.invalidate(),
+    onMutate: async ({ aiProviderId, isActive }) => {
+      await utils.aiProvider.getActiveAIs.cancel();
+      const previousActiveAIs = utils.aiProvider.getActiveAIs.getData();
+
+      utils.aiProvider.getActiveAIs.setData(undefined, (old) => {
+        if (!old) return [];
+
+        const newActiveAIs = [...old];
+        const existingIndex = newActiveAIs.findIndex(
+          (ai) => ai.aiProviderId === aiProviderId
+        );
+
+        if (existingIndex !== -1) {
+          const existing = newActiveAIs[existingIndex];
+          if (existing) {
+            newActiveAIs[existingIndex] = { ...existing, isActive };
+          }
+        } else if (isActive) {
+          const provider = aiProviders?.find(p => p.id === aiProviderId);
+          if (provider) {
+            newActiveAIs.push({
+              id: `temp-${Date.now()}`,
+              userId: session?.user?.id ?? "temp-user",
+              aiProviderId,
+              isActive: true,
+              createdAt: new Date(),
+              aiProvider: provider,
+            });
+          }
+        }
+
+        return newActiveAIs;
+      });
+
+      return { previousActiveAIs };
+    },
+    onError: (_err, _newActiveAI, context) => {
+      utils.aiProvider.getActiveAIs.setData(
+        undefined,
+        context?.previousActiveAIs
+      );
+      showNotification("AI設定の変更に失敗しました");
+    },
+    onSettled: () => {
+      void utils.aiProvider.getActiveAIs.invalidate();
+    },
   });
-  const addCustomAI = api.settings.addCustomAI.useMutation({
-    onSuccess: () => {
+  const addCustomAI = api.aiProvider.createCustom.useMutation({
+    onMutate: async ({ name }) => {
+      await utils.aiProvider.getAll.cancel();
+      const previousProviders = utils.aiProvider.getAll.getData();
+
+      utils.aiProvider.getAll.setData(undefined, (old) => {
+        if (!old) return [];
+        return [
+          ...old,
+          {
+            id: `temp-${Date.now()}`,
+            name,
+            icon: "bot",
+            isDefault: false,
+            userId: session?.user?.id ?? "temp-user",
+            createdAt: new Date(),
+          },
+        ];
+      });
+
+      return { previousProviders };
+    },
+    onError: (_err, _newAI, context) => {
+      utils.aiProvider.getAll.setData(undefined, context?.previousProviders);
+      showNotification("AIの追加に失敗しました");
+    },
+    onSettled: () => {
       void utils.aiProvider.getAll.invalidate();
       void utils.aiProvider.getActiveAIs.invalidate();
     },
   });
-  const removeCustomAI = api.settings.removeCustomAI.useMutation({
-    onSuccess: () => {
+  const removeCustomAI = api.aiProvider.delete.useMutation({
+    onMutate: async ({ id }) => {
+      await utils.aiProvider.getAll.cancel();
+      const previousProviders = utils.aiProvider.getAll.getData();
+
+      utils.aiProvider.getAll.setData(undefined, (old) => {
+        if (!old) return [];
+        return old.filter((p) => p.id !== id);
+      });
+
+      // Also update activeAIs to remove the deleted one instantly from active list
+      await utils.aiProvider.getActiveAIs.cancel();
+      const previousActiveAIs = utils.aiProvider.getActiveAIs.getData();
+
+      utils.aiProvider.getActiveAIs.setData(undefined, (old) => {
+        if (!old) return [];
+        return old.filter((active) => active.aiProviderId !== id);
+      });
+
+      return { previousProviders, previousActiveAIs };
+    },
+    onError: (_err, _variables, context) => {
+      utils.aiProvider.getAll.setData(undefined, context?.previousProviders);
+      utils.aiProvider.getActiveAIs.setData(undefined, context?.previousActiveAIs);
+      showNotification("AIの削除に失敗しました");
+    },
+    onSettled: () => {
       void utils.aiProvider.getAll.invalidate();
       void utils.aiProvider.getActiveAIs.invalidate();
     },
   });
+
+  const updateAI = api.aiProvider.update.useMutation({
+    onMutate: async ({ id, name }) => {
+      await utils.aiProvider.getAll.cancel();
+      const previousProviders = utils.aiProvider.getAll.getData();
+
+      utils.aiProvider.getAll.setData(undefined, (old) => {
+        if (!old) return [];
+        return old.map((p) => (p.id === id ? { ...p, name } : p));
+      });
+
+      await utils.aiProvider.getActiveAIs.cancel();
+      const previousActiveAIs = utils.aiProvider.getActiveAIs.getData();
+
+      utils.aiProvider.getActiveAIs.setData(undefined, (old) => {
+        if (!old) return [];
+        return old.map(r => r.aiProviderId === id ? { ...r, aiProvider: { ...r.aiProvider, name } } : r);
+      });
+
+      return { previousProviders, previousActiveAIs };
+    },
+    onError: (_err, _vars, ctx) => {
+      utils.aiProvider.getAll.setData(undefined, ctx?.previousProviders);
+      utils.aiProvider.getActiveAIs.setData(undefined, ctx?.previousActiveAIs);
+      showNotification("AI名の変更に失敗しました");
+    },
+    onSettled: () => {
+      void utils.aiProvider.getAll.invalidate();
+      void utils.aiProvider.getActiveAIs.invalidate();
+    },
+  });
+
+  const updateTag = api.tag.update.useMutation({
+    onMutate: async ({ id, name }) => {
+      await utils.tag.getAll.cancel();
+      const previousTags = utils.tag.getAll.getData();
+
+      utils.tag.getAll.setData(undefined, (old) => {
+        if (!old) return [];
+        return old.map((t) => (t.id === id ? { ...t, name: name ?? t.name } : t));
+      });
+
+      return { previousTags };
+    },
+    onError: (_err, _vars, ctx) => {
+      utils.tag.getAll.setData(undefined, ctx?.previousTags);
+      showNotification("タグ名の変更に失敗しました");
+    },
+    onSettled: () => {
+      void utils.tag.getAll.invalidate();
+      void utils.snippet.getAll.invalidate();
+      void utils.snippet.getById.invalidate();
+    },
+  });
+
+  const ensureDefaults = api.aiProvider.ensureDefaults.useMutation({
+    onSuccess: () => void utils.aiProvider.getAll.invalidate(),
+  });
+
+  // Ensure default AIs exist when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      ensureDefaults.mutate();
+    }
+  }, [isOpen]);
   const createTag = api.tag.create.useMutation({
-    onSuccess: () => void utils.tag.getAll.invalidate(),
+    onSuccess: () => {
+      void utils.tag.getAll.invalidate();
+      void utils.snippet.getAll.invalidate();
+    },
   });
   const deleteTag = api.tag.delete.useMutation({
-    onSuccess: () => void utils.tag.getAll.invalidate(),
+    onSuccess: () => {
+      void utils.tag.getAll.invalidate();
+      void utils.snippet.getAll.invalidate();
+    },
+    onError: (error) => {
+      showNotification(`タグの削除に失敗しました: ${error.message}`);
+    },
   });
 
   // Local state
@@ -76,6 +281,61 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
   const [aiToDelete, setAiToDelete] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Edit states
+  const [editingAIId, setEditingAIId] = useState<string | null>(null);
+  const [editingAIText, setEditingAIText] = useState("");
+  const [editingTagId, setEditingTagId] = useState<string | null>(null);
+  const [editingTagText, setEditingTagText] = useState("");
+
+  // Long press logic
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
+
+  const startPress = (id: string, type: "ai" | "tag", initialText: string) => {
+    isLongPressRef.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (type === "ai") {
+        setEditingAIId(id);
+        setEditingAIText(initialText);
+      } else {
+        setEditingTagId(id);
+        setEditingTagText(initialText);
+      }
+    }, 600);
+  };
+
+  const cancelPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const handleClick = (action: () => void) => {
+    if (!isLongPressRef.current) {
+      action();
+    }
+  };
+
+  const saveAIEdit = () => {
+    if (editingAIId && editingAIText.trim()) {
+      updateAI.mutate({ id: editingAIId, name: editingAIText.trim() });
+      setEditingAIId(null);
+    } else {
+      setEditingAIId(null);
+    }
+  };
+
+  const saveTagEdit = () => {
+    if (editingTagId && editingTagText.trim()) {
+      updateTag.mutate({ id: editingTagId, name: editingTagText.trim() });
+      setEditingTagId(null);
+    } else {
+      setEditingTagId(null);
+    }
+  };
 
   // Sync settings to local state
   useEffect(() => {
@@ -89,11 +349,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const nameToSave = newUserName.trim() || "あなた";
     updateUserName.mutate({ userName: nameToSave });
     setNewUserName(nameToSave);
+    showNotification("ユーザー名を保存しました");
+  };
+
+  const handleUpdateDisplayMode = (mode: "markdown" | "plain") => {
+    updateDisplayMode.mutate({ displayMode: mode });
+    showNotification("表示モードを変更しました");
   };
 
   const handleAddAI = () => {
     if (newAIName.trim()) {
-      addCustomAI.mutate({ aiName: newAIName.trim() });
+      addCustomAI.mutate({ name: newAIName.trim() });
       setNewAIName("");
     }
   };
@@ -117,7 +383,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const confirmDeleteAI = () => {
     if (aiToDelete) {
-      removeCustomAI.mutate({ aiName: aiToDelete });
+      const provider = aiProviders?.find((p) => p.name === aiToDelete);
+      if (provider) {
+        removeCustomAI.mutate({ id: provider.id });
+      }
       setAiToDelete(null);
     }
   };
@@ -129,16 +398,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   // Derived data
-  const allAIs = [
-    ...DEFAULT_AI_PRESETS,
-    ...(aiProviders?.filter((ai) => !ai.isDefault).map((ai) => ai.name) ?? []),
-  ];
+  const allAIs = aiProviders?.map((ai) => ai.name) ?? [];
   const customAIs = aiProviders?.filter((ai) => !ai.isDefault).map((ai) => ai.name) ?? [];
   const activeAINames = activeAIs?.filter((ai) => ai.isActive).map((ai) => ai.aiProvider.name) ?? [];
   const defaultDisplayMode = settings?.defaultDisplayMode ?? "markdown";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="設定" size="lg">
+      {/* Notification Overlay */}
+      {notification && (
+        <div className="absolute top-16 left-0 right-0 z-50 flex justify-center pointer-events-none animate-in fade-in zoom-in duration-200">
+          <div className="bg-gray-800/95 text-white text-sm font-medium px-6 py-2 rounded-full shadow-xl backdrop-blur-sm border border-white/10">
+            {notification}
+          </div>
+        </div>
+      )}
+
       {/* Tag Delete Confirmation */}
       {tagToDelete && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-[1px] rounded-2xl">
@@ -198,45 +473,42 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       )}
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200 -mt-2">
+      {/* Tab Navigation */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200 -mt-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab("general")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "general"
-              ? "border-orange-500 text-orange-500"
-              : "border-transparent text-gray-500 hover:text-gray-800"
-          }`}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap shrink-0 ${activeTab === "general"
+            ? "border-orange-500 text-orange-500"
+            : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
         >
           一般
         </button>
         <button
           onClick={() => setActiveTab("ai")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "ai"
-              ? "border-orange-500 text-orange-500"
-              : "border-transparent text-gray-500 hover:text-gray-800"
-          }`}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap shrink-0 ${activeTab === "ai"
+            ? "border-orange-500 text-orange-500"
+            : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
         >
           AI名管理
         </button>
         <button
           onClick={() => setActiveTab("tags")}
-          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === "tags"
-              ? "border-orange-500 text-orange-500"
-              : "border-transparent text-gray-500 hover:text-gray-800"
-          }`}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap shrink-0 ${activeTab === "tags"
+            ? "border-orange-500 text-orange-500"
+            : "border-transparent text-gray-500 hover:text-gray-800"
+            }`}
         >
           タグ管理
         </button>
         {session?.user && (
           <button
             onClick={() => setActiveTab("account")}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === "account"
-                ? "border-orange-500 text-orange-500"
-                : "border-transparent text-gray-500 hover:text-gray-800"
-            }`}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 whitespace-nowrap shrink-0 ${activeTab === "account"
+              ? "border-orange-500 text-orange-500"
+              : "border-transparent text-gray-500 hover:text-gray-800"
+              }`}
           >
             アカウント
           </button>
@@ -276,22 +548,20 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </label>
               <div className="flex gap-2">
                 <button
-                  onClick={() => updateDisplayMode.mutate({ displayMode: "markdown" })}
-                  className={`flex-1 px-4 py-2 text-sm rounded-lg transition-colors ${
-                    defaultDisplayMode === "markdown"
-                      ? "bg-orange-500 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
+                  onClick={() => handleUpdateDisplayMode("markdown")}
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg transition-colors ${defaultDisplayMode === "markdown"
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
                 >
                   マークダウン
                 </button>
                 <button
-                  onClick={() => updateDisplayMode.mutate({ displayMode: "plain" })}
-                  className={`flex-1 px-4 py-2 text-sm rounded-lg transition-colors ${
-                    defaultDisplayMode === "plain"
-                      ? "bg-orange-500 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
+                  onClick={() => handleUpdateDisplayMode("plain")}
+                  className={`flex-1 px-4 py-2 text-sm rounded-lg transition-colors ${defaultDisplayMode === "plain"
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
                 >
                   プレーン
                 </button>
@@ -315,27 +585,63 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 const isActive = activeAINames.includes(ai);
                 const isCustom = customAIs.includes(ai);
                 const provider = aiProviders?.find((p) => p.name === ai);
+                const isEditing = editingAIId === provider?.id;
+
+                if (isEditing) {
+                  return (
+                    <div key={ai} className="relative">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingAIText}
+                        onChange={(e) => setEditingAIText(e.target.value)}
+                        onBlur={saveAIEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveAIEdit();
+                          if (e.key === "Escape") setEditingAIId(null);
+                        }}
+                        className="px-3 py-1.5 text-sm border border-orange-500 rounded-full focus:outline-none w-[120px]"
+                      />
+                    </div>
+                  );
+                }
 
                 return (
                   <div
                     key={ai}
                     className={`
-                      relative group flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer
+                      relative group flex items-center gap-1 px-3 py-1.5 rounded-full cursor-pointer select-none
                       transition-colors
                       ${isActive ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-500"}
                     `}
-                    onClick={() => {
-                      if (provider) {
-                        toggleActiveAI.mutate({ aiProviderId: provider.id, isActive: !isActive });
-                      }
-                    }}
+                    onMouseDown={() => isCustom && provider && startPress(provider.id, "ai", ai)}
+                    onMouseUp={cancelPress}
+                    onMouseLeave={cancelPress}
+                    onTouchStart={() => isCustom && provider && startPress(provider.id, "ai", ai)}
+                    onTouchEnd={cancelPress}
+                    onClick={() =>
+                      handleClick(() => {
+                        if (!provider) return;
+
+                        if (isActive && activeAINames.length <= 1) {
+                          showNotification("最低一つの名前を選択しておく必要があります");
+                          return;
+                        }
+
+                        toggleActiveAI.mutate({
+                          aiProviderId: provider.id,
+                          isActive: !isActive,
+                        });
+                      })
+                    }
                   >
                     <span className="text-sm">{ai}</span>
                     {isCustom && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAiToDelete(ai);
+                          // Prevent delete when long pressing or just editing
+                          if (!isLongPressRef.current) setAiToDelete(ai);
                         }}
                         className="p-0.5 rounded-full hover:bg-white/20 transition-colors"
                         aria-label={`${ai}を削除`}
@@ -386,22 +692,52 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {!tags || tags.length === 0 ? (
                 <span className="text-sm text-gray-500">まだタグがありません</span>
               ) : (
-                tags.map((tag) => (
-                  <div
-                    key={tag.id}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-full"
-                  >
-                    <TagIcon size={12} className="text-gray-400" />
-                    <span className="text-sm">{tag.name}</span>
-                    <button
-                      onClick={() => setTagToDelete(tag.name)}
-                      className="ml-1 p-0.5 rounded-full hover:bg-red-100 transition-colors"
-                      aria-label={`${tag.name}を削除`}
+                tags.map((tag) => {
+                  const isEditing = editingTagId === tag.id;
+                  if (isEditing) {
+                    return (
+                      <div key={tag.id} className="relative">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={editingTagText}
+                          onChange={(e) => setEditingTagText(e.target.value)}
+                          onBlur={saveTagEdit}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveTagEdit();
+                            if (e.key === "Escape") setEditingTagId(null);
+                          }}
+                          className="px-3 py-1.5 text-sm border border-orange-500 rounded-full focus:outline-none w-[100px]"
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div
+                      key={tag.id}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-full cursor-pointer select-none"
+                      onMouseDown={() => startPress(tag.id, "tag", tag.name)}
+                      onMouseUp={cancelPress}
+                      onMouseLeave={cancelPress}
+                      onTouchStart={() => startPress(tag.id, "tag", tag.name)}
+                      onTouchEnd={cancelPress}
+                      onClick={() => handleClick(() => { /* No click action for tags currently, or maybe select? */ })}
                     >
-                      <X size={12} className="text-gray-400 hover:text-red-500" />
-                    </button>
-                  </div>
-                ))
+                      <TagIcon size={12} className="text-gray-400" />
+                      <span className="text-sm">{tag.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isLongPressRef.current) setTagToDelete(tag.name);
+                        }}
+                        className="ml-1 p-0.5 rounded-full hover:bg-red-100 transition-colors"
+                        aria-label={`${tag.name}を削除`}
+                      >
+                        <X size={12} className="text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
 
@@ -440,11 +776,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <User size={20} className="text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800">
-                      {session.user.email}
+                    <p className="text-sm font-bold text-gray-800">
+                      {session.user.name || "ユーザー"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      ログイン中
+                      {session.user.email}
                     </p>
                   </div>
                 </div>

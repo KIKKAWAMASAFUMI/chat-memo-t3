@@ -2,7 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import DOMPurify from "dompurify";
+import remarkBreaks from "remark-breaks";
 import { CodeBlock } from "./code-block";
 import type { Components } from "react-markdown";
 
@@ -15,9 +15,6 @@ export function MarkdownRenderer({
   content,
   className = "",
 }: MarkdownRendererProps) {
-  // Sanitize content
-  const sanitizedContent = DOMPurify.sanitize(content);
-
   // Custom components for react-markdown
   const components: Components = {
     // Code blocks
@@ -117,8 +114,8 @@ export function MarkdownRenderer({
 
   return (
     <div className={`markdown-content text-sm text-gray-800 ${className}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {sanitizedContent}
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
+        {content}
       </ReactMarkdown>
     </div>
   );

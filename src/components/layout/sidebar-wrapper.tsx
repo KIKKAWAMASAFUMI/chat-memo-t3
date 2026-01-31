@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   Plus,
   Search,
@@ -12,12 +12,12 @@ import {
   Hash,
   MoreVertical,
   Edit3,
+  Loader2,
 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { SettingsModal } from "~/components/settings/settings-modal";
 import { TagModal } from "~/components/tag/tag-modal";
 import { useSidebar } from "~/components/layout/sidebar-context";
-import { SnippetListSkeleton } from "~/components/ui/skeleton";
 import { CreateSnippetModal } from "~/components/snippet/create-snippet-modal";
 
 export function SidebarWrapper() {
@@ -33,6 +33,7 @@ export function SidebarWrapper() {
   const [tagModalSnippetId, setTagModalSnippetId] = useState<string | null>(null);
   const [editingSnippetId, setEditingSnippetId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +42,7 @@ export function SidebarWrapper() {
   const isTouchRef = useRef(false);
 
   const utils = api.useUtils();
+  const { data: session } = useSession();
 
   // Get current snippet ID from URL
   // Get current snippet ID from URL
@@ -115,7 +117,7 @@ export function SidebarWrapper() {
     const matchesSearch = snippet.title.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTags =
       selectedTagIds.length === 0 ||
-      selectedTagIds.some((tagId) => snippet.tags.some((t) => t.tagId === tagId));
+      selectedTagIds.every((tagId) => snippet.tags.some((t) => t.tagId === tagId));
     return matchesSearch && matchesTags;
   });
 
@@ -140,6 +142,7 @@ export function SidebarWrapper() {
     } else {
       setSelectedTagIds([...selectedTagIds, tagId]);
     }
+    setTagDropdownOpen(false);
   };
 
   const clearTagFilter = () => {
@@ -149,7 +152,10 @@ export function SidebarWrapper() {
   const handleSelectSnippet = (id: string) => {
     if (!isTouchRef.current) {
       router.push(`/memo/${id}`);
-      close(); // Close sidebar on mobile after selecting
+      // Only close sidebar on mobile (lg breakpoint is 1024px)
+      if (window.innerWidth < 1024) {
+        close();
+      }
     }
   };
 
@@ -195,7 +201,15 @@ export function SidebarWrapper() {
       >
         {/* Header */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-          <h1 className="text-lg font-bold text-orange-500">Chat Memo</h1>
+          <h1
+            onClick={() => {
+              router.push("/");
+              if (window.innerWidth < 1024) close();
+            }}
+            className="text-lg font-bold text-orange-500 cursor-pointer"
+          >
+            Chat Memo
+          </h1>
           <button
             onClick={close}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -303,7 +317,9 @@ export function SidebarWrapper() {
         {/* Snippet List */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
-            <SnippetListSkeleton />
+            <div className="flex justify-center p-8">
+              <Loader2 className="animate-spin text-orange-500" size={24} />
+            </div>
           ) : filteredSnippets?.length === 0 ? (
             <div className="p-4 text-center text-gray-400">
               {searchQuery || selectedTagIds.length > 0 ? "検索結果がありません" : "メモがありません"}
@@ -322,6 +338,9 @@ export function SidebarWrapper() {
                     }
                     ${menuOpenId === snippet.id ? "scale-[1.02] shadow-lg z-10" : ""}
                   `}
+                  onMouseEnter={() => {
+                    void utils.snippet.getById.prefetch({ id: snippet.id });
+                  }}
                   onClick={() => handleSelectSnippet(snippet.id)}
                   onTouchStart={() => startLongPress(snippet.id)}
                   onTouchEnd={endLongPress}
@@ -428,13 +447,36 @@ export function SidebarWrapper() {
             <Settings size={20} />
             設定
           </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <LogOut size={20} />
-            ログアウト
-          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="w-full flex items-center gap-3 p-2 text-gray-800 hover:bg-gray-100 rounded-lg transition-colors font-medium"
+            >
+              <div className="w-5 h-5 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center text-[10px] text-white font-bold">
+                {session?.user.name?.[0] || "U"}
+              </div>
+              <span className="truncate">{session?.user.name || "ユーザー"}</span>
+            </button>
+
+            {userMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setUserMenuOpen(false)}
+                />
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 z-20 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors text-sm"
+                  >
+                    <LogOut size={16} />
+                    ログアウト
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </aside>
 

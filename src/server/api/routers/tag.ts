@@ -91,6 +91,11 @@ export const tagRouter = createTRPCRouter({
         throw new Error("Tag not found");
       }
 
+      // Delete all snippet associations first
+      await ctx.db.snippetTag.deleteMany({
+        where: { tagId: input.id },
+      });
+
       return ctx.db.tag.delete({
         where: { id: input.id },
       });

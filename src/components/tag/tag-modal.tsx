@@ -31,10 +31,18 @@ export function TagModal({ isOpen, onClose, snippetId }: TagModalProps) {
     onSuccess: () => void utils.tag.getAll.invalidate(),
   });
   const addTagToSnippet = api.tag.addToSnippet.useMutation({
-    onSuccess: () => void utils.tag.getForSnippet.invalidate({ snippetId }),
+    onSuccess: () => {
+      void utils.tag.getForSnippet.invalidate({ snippetId });
+      void utils.snippet.getAll.invalidate();
+      void utils.snippet.getById.invalidate({ id: snippetId });
+    },
   });
   const removeTagFromSnippet = api.tag.removeFromSnippet.useMutation({
-    onSuccess: () => void utils.tag.getForSnippet.invalidate({ snippetId }),
+    onSuccess: () => {
+      void utils.tag.getForSnippet.invalidate({ snippetId });
+      void utils.snippet.getAll.invalidate();
+      void utils.snippet.getById.invalidate({ id: snippetId });
+    },
   });
 
   // Local state
@@ -124,10 +132,9 @@ export function TagModal({ isOpen, onClose, snippetId }: TagModalProps) {
                     className={`
                       inline-flex items-center gap-1 px-2.5 py-1 text-sm rounded-full
                       transition-colors
-                      ${
-                        isSelected
-                          ? "bg-orange-100 text-orange-600 border border-orange-400"
-                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      ${isSelected
+                        ? "bg-orange-100 text-orange-600 border border-orange-400"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                       }
                       disabled:opacity-50 disabled:cursor-not-allowed
                     `}
